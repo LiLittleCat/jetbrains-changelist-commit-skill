@@ -2,14 +2,12 @@
 
 # jetbrains-changelist-commit.skill
 
-> Commit exactly one JetBrains changelist, while leaving every other changelist's Git index entries untouched.
-
 [![Agent Skill](https://img.shields.io/badge/Agent-Skill-7c3aed)](https://github.com/vercel-labs/skills)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 <br>
 
-**An Agent Skill for committing JetBrains IDE changelists safely**. It reads `.idea/workspace.xml`, resolves the selected changelist from `ChangeListManager`, and commits only those paths through a temporary Git index.
+**An Agent Skill for committing JetBrains IDE changelists safely**. It reads `.idea/workspace.xml`, resolves the selected changelist from `ChangeListManager`, and commits only those paths through a temporary Git index, so one changelist can be committed without disturbing the Git index entries of the others.
 
 The goal is practical: keep Codex, Claude Code, and other skill-aware agents from accidentally mixing unrelated local work into a commit, especially in repositories where IntelliJ IDEA, WebStorm, PyCharm, or Android Studio changelists are the source of truth.
 
