@@ -5,6 +5,7 @@
 > Commit exactly one JetBrains changelist, while leaving every other changelist's Git index entries untouched.
 
 [![Agent Skill](https://img.shields.io/badge/Agent-Skill-7c3aed)](https://github.com/vercel-labs/skills)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 <br>
 
@@ -39,7 +40,7 @@ Install the jetbrains-changelist-commit skill for this project:
 
 <div align="center">
 
-[Use cases](#use-cases) | [Behavior](#behavior) | [Usage](#usage) | [Layout](#layout)
+[Use cases](#use-cases) | [Behavior](#behavior) | [Usage](#usage) | [Layout](#layout) | [License](#license)
 
 </div>
 
@@ -128,6 +129,7 @@ scripts/commit_changelist.sh
 jetbrains-changelist-commit-skill/
 ├── SKILL.md
 ├── README.md
+├── LICENSE
 ├── agents/
 │   └── openai.yaml
 └── scripts/
@@ -135,3 +137,7 @@ jetbrains-changelist-commit-skill/
     ├── commit_changelist.ps1
     └── commit_changelist.sh
 ```
+
+## License
+
+MIT - see [LICENSE](LICENSE).
