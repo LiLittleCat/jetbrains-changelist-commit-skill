@@ -1,4 +1,0 @@
-interface:
-  display_name: "JetBrains Changelist Commit"
-  short_description: "Commit only files in a JetBrains changelist"
-  default_prompt: "Use $jetbrains-changelist-commit to commit only the files from the active JetBrains changelist."

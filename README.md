@@ -130,8 +130,6 @@ jetbrains-changelist-commit-skill/
 ├── SKILL.md
 ├── README.md
 ├── LICENSE
-├── agents/
-│   └── openai.yaml
 └── scripts/
     ├── commit_changelist.py
     ├── commit_changelist.ps1
