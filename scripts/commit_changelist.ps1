@@ -219,6 +219,8 @@ if ($DryRun) {
 }
 
 if ($paths.Count -eq 0) {
+    $listLabel = if ($name) { $name } elseif ($id) { $id } else { "<unnamed>" }
+    Write-Error "No files to commit from changelist '$listLabel'. Nothing was committed."
     exit 2
 }
 

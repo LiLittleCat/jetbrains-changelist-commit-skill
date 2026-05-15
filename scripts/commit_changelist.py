@@ -106,6 +106,24 @@ def expand_project_path(raw: str, repo: Path) -> Path:
     return (repo / value).resolve()
 
 
+def to_repo_relative(absolute: Path, repo: Path) -> str:
+    try:
+        return absolute.relative_to(repo).as_posix()
+    except ValueError:
+        pass
+
+    abs_str = os.fspath(absolute)
+    repo_str = os.fspath(repo)
+    abs_norm = os.path.normcase(abs_str)
+    repo_norm = os.path.normcase(repo_str)
+    if abs_norm == repo_norm:
+        return ""
+    prefix = repo_norm + os.sep
+    if abs_norm.startswith(prefix):
+        return Path(abs_str[len(repo_str) + 1:]).as_posix()
+    raise SystemExit(f"Changelist path is outside the repository: {absolute}")
+
+
 def pathspecs_for_changelist(changelist: ET.Element, repo: Path) -> list[str]:
     paths: list[str] = []
     seen: set[str] = set()
@@ -116,13 +134,12 @@ def pathspecs_for_changelist(changelist: ET.Element, repo: Path) -> list[str]:
             if not raw:
                 continue
             absolute = expand_project_path(raw, repo)
-            try:
-                relative = absolute.relative_to(repo)
-            except ValueError as exc:
-                raise SystemExit(f"Changelist path is outside the repository: {absolute}") from exc
-            pathspec = relative.as_posix()
-            if pathspec not in seen:
-                seen.add(pathspec)
+            pathspec = to_repo_relative(absolute, repo)
+            if not pathspec:
+                continue
+            key = os.path.normcase(pathspec)
+            if key not in seen:
+                seen.add(key)
                 paths.append(pathspec)
 
     return paths
@@ -222,6 +239,10 @@ def main() -> int:
     if args.dry_run:
         return 0
     if not paths:
+        name = changelist.get("name") or changelist.get("id") or "<unnamed>"
+        sys.stderr.write(
+            f"No files to commit from changelist '{name}'. Nothing was committed.\n"
+        )
         return 2
 
     commit = commit_paths(repo, paths, args.message, args.no_verify)

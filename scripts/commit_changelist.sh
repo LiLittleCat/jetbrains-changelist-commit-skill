@@ -260,6 +260,8 @@ PERL
 
 path_count=$(wc -l < "$paths_file" | tr -d ' ')
 
+# POSIX sh has no arrays; reuse positional parameters to hold the path list.
+# Original CLI args were already parsed above, so $@ is safe to repurpose here.
 set --
 while IFS= read -r path; do
     [ -n "$path" ] && set -- "$@" "$path"
@@ -277,6 +279,7 @@ if [ "$dry_run" -eq 1 ]; then
 fi
 
 if [ "$path_count" -eq 0 ]; then
+    printf 'No files to commit from the selected changelist. Nothing was committed.\n' >&2
     exit 2
 fi
 
