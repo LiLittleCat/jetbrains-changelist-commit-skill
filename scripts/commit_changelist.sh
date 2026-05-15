@@ -9,10 +9,12 @@ no_verify=0
 message_count=0
 msg_file=""
 paths_file=""
+index_dir=""
 
 cleanup() {
     [ -n "$msg_file" ] && [ -f "$msg_file" ] && rm -f "$msg_file"
     [ -n "$paths_file" ] && [ -f "$paths_file" ] && rm -f "$paths_file"
+    [ -n "$index_dir" ] && [ -d "$index_dir" ] && rm -rf "$index_dir"
 }
 trap cleanup EXIT INT TERM
 
@@ -23,6 +25,23 @@ die() {
 
 need_value() {
     [ $# -ge 2 ] || die "Missing value for $1"
+}
+
+real_index_matches_worktree() {
+    set +e
+    git -C "$repo_root" diff --quiet -- "$@"
+    diff_code=$?
+    set -e
+    if [ "$diff_code" -ne 0 ] && [ "$diff_code" -ne 1 ]; then
+        exit "$diff_code"
+    fi
+
+    other_paths=$(git -C "$repo_root" ls-files --others --exclude-standard -- "$@")
+    [ "$diff_code" -eq 0 ] && [ -z "$other_paths" ]
+}
+
+has_head() {
+    git -C "$repo_root" rev-parse --verify --quiet HEAD >/dev/null 2>&1
 }
 
 msg_file=$(mktemp "${TMPDIR:-/tmp}/jetbrains-changelist-message.XXXXXX")
@@ -265,10 +284,25 @@ if [ "$message_count" -eq 0 ]; then
     die "Commit message is required. Pass -m/--message."
 fi
 
-git -C "$repo_root" add -A -- "$@"
+if real_index_matches_worktree "$@"; then
+    selected_paths_are_already_indexed=1
+else
+    selected_paths_are_already_indexed=0
+fi
+
+index_dir=$(mktemp -d "${TMPDIR:-/tmp}/jetbrains-changelist-index.XXXXXX")
+index_file=$index_dir/index
+
+if has_head; then
+    GIT_INDEX_FILE=$index_file git -C "$repo_root" read-tree HEAD
+else
+    GIT_INDEX_FILE=$index_file git -C "$repo_root" read-tree --empty
+fi
+
+GIT_INDEX_FILE=$index_file git -C "$repo_root" add -A -- "$@"
 
 set +e
-git -C "$repo_root" diff --cached --quiet -- "$@"
+GIT_INDEX_FILE=$index_file git -C "$repo_root" diff --cached --quiet -- "$@"
 diff_code=$?
 set -e
 
@@ -280,9 +314,13 @@ if [ "$diff_code" -ne 1 ]; then
 fi
 
 if [ "$no_verify" -eq 1 ]; then
-    git -C "$repo_root" commit --only --no-verify -F "$msg_file" -- "$@"
+    GIT_INDEX_FILE=$index_file git -C "$repo_root" commit --no-verify -F "$msg_file"
 else
-    git -C "$repo_root" commit --only -F "$msg_file" -- "$@"
+    GIT_INDEX_FILE=$index_file git -C "$repo_root" commit -F "$msg_file"
+fi
+
+if [ "$selected_paths_are_already_indexed" -eq 0 ]; then
+    git -C "$repo_root" add -A -- "$@"
 fi
 
 commit=$(git -C "$repo_root" rev-parse --short HEAD)

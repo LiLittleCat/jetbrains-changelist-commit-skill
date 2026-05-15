@@ -4,18 +4,29 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
-def run_git(repo: Path, args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+def run_git(
+    repo: Path,
+    args: list[str],
+    check: bool = True,
+    extra_env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    if extra_env:
+        env.update(extra_env)
     result = subprocess.run(
         ["git", "-C", str(repo), *args],
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=env,
     )
     if check and result.returncode != 0:
         if result.stdout:
@@ -24,6 +35,23 @@ def run_git(repo: Path, args: list[str], check: bool = True) -> subprocess.Compl
             sys.stderr.write(result.stderr)
         raise SystemExit(result.returncode)
     return result
+
+
+def has_head(repo: Path) -> bool:
+    result = run_git(repo, ["rev-parse", "--verify", "--quiet", "HEAD"], check=False)
+    return result.returncode == 0
+
+
+def real_index_matches_worktree(repo: Path, paths: list[str]) -> bool:
+    diff = run_git(repo, ["diff", "--quiet", "--", *paths], check=False)
+    if diff.returncode not in (0, 1):
+        raise SystemExit(diff.returncode)
+
+    others = run_git(repo, ["ls-files", "--others", "--exclude-standard", "--", *paths], check=False)
+    if others.returncode != 0:
+        raise SystemExit(others.returncode)
+
+    return diff.returncode == 0 and not others.stdout.strip()
 
 
 def resolve_repo(start: Path) -> Path:
@@ -125,22 +153,35 @@ def commit_paths(repo: Path, paths: list[str], messages: list[str], no_verify: b
     if not messages:
         raise SystemExit("Commit message is required. Pass -m/--message.")
 
-    run_git(repo, ["add", "-A", "--", *paths])
+    selected_paths_are_already_indexed = real_index_matches_worktree(repo, paths)
 
-    diff = run_git(repo, ["diff", "--cached", "--quiet", "--", *paths], check=False)
-    if diff.returncode == 0:
-        raise SystemExit("Selected changelist has no staged changes to commit")
-    if diff.returncode not in (0, 1):
-        raise SystemExit(diff.returncode)
+    with tempfile.TemporaryDirectory(prefix="jetbrains-changelist-index-") as temp_dir:
+        index_path = str(Path(temp_dir) / "index")
+        index_env = {"GIT_INDEX_FILE": index_path}
 
-    cmd = ["commit", "--only"]
-    if no_verify:
-        cmd.append("--no-verify")
-    for message in messages:
-        cmd.extend(["-m", message])
-    cmd.extend(["--", *paths])
-    result = run_git(repo, cmd)
-    sys.stdout.write(result.stdout)
+        if has_head(repo):
+            run_git(repo, ["read-tree", "HEAD"], extra_env=index_env)
+        else:
+            run_git(repo, ["read-tree", "--empty"], extra_env=index_env)
+
+        run_git(repo, ["add", "-A", "--", *paths], extra_env=index_env)
+
+        diff = run_git(repo, ["diff", "--cached", "--quiet", "--", *paths], check=False, extra_env=index_env)
+        if diff.returncode == 0:
+            raise SystemExit("Selected changelist has no staged changes to commit")
+        if diff.returncode not in (0, 1):
+            raise SystemExit(diff.returncode)
+
+        cmd = ["commit"]
+        if no_verify:
+            cmd.append("--no-verify")
+        for message in messages:
+            cmd.extend(["-m", message])
+        result = run_git(repo, cmd, extra_env=index_env)
+        sys.stdout.write(result.stdout)
+
+    if not selected_paths_are_already_indexed:
+        run_git(repo, ["add", "-A", "--", *paths])
 
     rev = run_git(repo, ["rev-parse", "--short", "HEAD"])
     return rev.stdout.strip()

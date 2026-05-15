@@ -1,6 +1,6 @@
 ---
 name: jetbrains-changelist-commit
-description: Commit Git changes using JetBrains IDE changelist membership from .idea/workspace.xml. Use when Codex is asked to create a git commit in a JetBrains project, when the user wants commits limited to the active/default changelist, or when local uncommitted files should stay out of the commit unless they are listed under ChangeListManager.
+description: Commit Git changes using JetBrains IDE changelist membership from .idea/workspace.xml. Use when an AI coding agent is asked to create a git commit in a JetBrains project, when the user wants commits limited to the active/default changelist, or when local uncommitted files should stay out of the commit unless they are listed under ChangeListManager.
 ---
 
 # JetBrains Changelist Commit
@@ -64,9 +64,10 @@ Shell equivalents match the Python flags:
 - Extracts direct `<change>` children from the selected changelist.
 - Expands `$PROJECT_DIR$` to the Git repository root.
 - Uses both `afterPath` and `beforePath` so additions, edits, deletes, and renames are handled.
-- Runs `git add -A -- <paths>` for the selected paths.
-- Runs `git commit --only -- <paths>` so the commit contains the selected changelist paths.
-- Leaves existing staged entries for other paths in the index after the commit.
+- Builds the commit from a temporary Git index seeded from `HEAD`.
+- Adds only the selected changelist paths to the temporary index.
+- Updates the real Git index only for selected paths that were not already indexed with their worktree content.
+- Leaves existing index entries for other changelists untouched.
 
 ## Handling Empty Lists
 

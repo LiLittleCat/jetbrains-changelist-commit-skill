@@ -17,11 +17,30 @@ function Invoke-Git {
         [string]$RepoRoot,
         [Parameter(Mandatory = $true)]
         [string[]]$Args,
+        [string]$IndexFile,
         [switch]$AllowFailure
     )
 
-    $output = & git -C $RepoRoot @Args 2>&1
-    $code = $LASTEXITCODE
+    $previousIndex = $env:GIT_INDEX_FILE
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        if ($IndexFile) {
+            $env:GIT_INDEX_FILE = $IndexFile
+        }
+        $ErrorActionPreference = "Continue"
+        $output = & git -C $RepoRoot @Args 2>&1
+        $code = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+        if ($null -eq $previousIndex) {
+            Remove-Item Env:\GIT_INDEX_FILE -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:GIT_INDEX_FILE = $previousIndex
+        }
+    }
+
     if ($code -ne 0 -and -not $AllowFailure) {
         if ($output) { $output | ForEach-Object { Write-Error $_ } }
         exit $code
@@ -31,6 +50,34 @@ function Invoke-Git {
         Code = $code
         Output = $output
     }
+}
+
+function Test-HasHead {
+    param([string]$RepoRoot)
+
+    $result = Invoke-Git -RepoRoot $RepoRoot -Args @("rev-parse", "--verify", "--quiet", "HEAD") -AllowFailure
+    return $result.Code -eq 0
+}
+
+function Test-RealIndexMatchesWorktree {
+    param(
+        [string]$RepoRoot,
+        [string[]]$Paths
+    )
+
+    $diffArgs = @("diff", "--quiet", "--") + $Paths
+    $diff = Invoke-Git -RepoRoot $RepoRoot -Args $diffArgs -AllowFailure
+    if ($diff.Code -ne 0 -and $diff.Code -ne 1) {
+        exit $diff.Code
+    }
+
+    $othersArgs = @("ls-files", "--others", "--exclude-standard", "--") + $Paths
+    $others = Invoke-Git -RepoRoot $RepoRoot -Args $othersArgs -AllowFailure
+    if ($others.Code -ne 0) {
+        exit $others.Code
+    }
+
+    return $diff.Code -eq 0 -and -not $others.Output
 }
 
 function Resolve-RepoRoot {
@@ -180,31 +227,52 @@ if (-not $Message -or $Message.Count -eq 0) {
     exit 1
 }
 
-$addArgs = @("add", "-A", "--") + $paths.ToArray()
-Invoke-Git -RepoRoot $repoRoot -Args $addArgs | Out-Null
+$selectedPathsAreAlreadyIndexed = Test-RealIndexMatchesWorktree -RepoRoot $repoRoot -Paths $paths.ToArray()
 
-$diffArgs = @("diff", "--cached", "--quiet", "--") + $paths.ToArray()
-$diff = Invoke-Git -RepoRoot $repoRoot -Args $diffArgs -AllowFailure
-if ($diff.Code -eq 0) {
-    Write-Error "Selected changelist has no staged changes to commit"
-    exit 1
+$tempIndexDir = Join-Path ([System.IO.Path]::GetTempPath()) ("jetbrains-changelist-index-" + [System.Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $tempIndexDir | Out-Null
+$tempIndex = Join-Path $tempIndexDir "index"
+
+try {
+    if (Test-HasHead -RepoRoot $repoRoot) {
+        Invoke-Git -RepoRoot $repoRoot -Args @("read-tree", "HEAD") -IndexFile $tempIndex | Out-Null
+    }
+    else {
+        Invoke-Git -RepoRoot $repoRoot -Args @("read-tree", "--empty") -IndexFile $tempIndex | Out-Null
+    }
+
+    $addArgs = @("add", "-A", "--") + $paths.ToArray()
+    Invoke-Git -RepoRoot $repoRoot -Args $addArgs -IndexFile $tempIndex | Out-Null
+
+    $diffArgs = @("diff", "--cached", "--quiet", "--") + $paths.ToArray()
+    $diff = Invoke-Git -RepoRoot $repoRoot -Args $diffArgs -IndexFile $tempIndex -AllowFailure
+    if ($diff.Code -eq 0) {
+        Write-Error "Selected changelist has no staged changes to commit"
+        exit 1
+    }
+    if ($diff.Code -ne 1) {
+        exit $diff.Code
+    }
+
+    $commitArgs = @("commit")
+    if ($NoVerify) {
+        $commitArgs += "--no-verify"
+    }
+    foreach ($item in $Message) {
+        $commitArgs += @("-m", $item)
+    }
+
+    $commit = Invoke-Git -RepoRoot $repoRoot -Args $commitArgs -IndexFile $tempIndex
+    $commit.Output | ForEach-Object { Write-Output $_ }
 }
-if ($diff.Code -ne 1) {
-    exit $diff.Code
+finally {
+    Remove-Item -LiteralPath $tempIndexDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-$commitArgs = @("commit", "--only")
-if ($NoVerify) {
-    $commitArgs += "--no-verify"
+if (-not $selectedPathsAreAlreadyIndexed) {
+    $addArgs = @("add", "-A", "--") + $paths.ToArray()
+    Invoke-Git -RepoRoot $repoRoot -Args $addArgs | Out-Null
 }
-foreach ($item in $Message) {
-    $commitArgs += @("-m", $item)
-}
-$commitArgs += "--"
-$commitArgs += $paths.ToArray()
-
-$commit = Invoke-Git -RepoRoot $repoRoot -Args $commitArgs
-$commit.Output | ForEach-Object { Write-Output $_ }
 
 $rev = Invoke-Git -RepoRoot $repoRoot -Args @("rev-parse", "--short", "HEAD")
 Write-Output ""
