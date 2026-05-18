@@ -115,7 +115,7 @@ The agent uses the bundled scripts behind the scenes, then reports the commit ha
 
 ## Internals
 
-The skill bundles three runner scripts. Python contains the shared implementation, while PowerShell and POSIX shell provide platform-native wrappers:
+The skill bundles three runner scripts. PowerShell, POSIX shell, and Python each implement the same changelist behavior so agents can use the runtime already available on the target machine:
 
 ```text
 scripts/commit_changelist.ps1

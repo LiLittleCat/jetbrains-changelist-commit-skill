@@ -51,7 +51,7 @@ sh <skill-dir>/scripts/commit_changelist.sh --dry-run
 sh <skill-dir>/scripts/commit_changelist.sh -m "feat: concise message"
 ```
 
-Python contains the shared implementation used by the platform wrappers:
+Python is available as an additional runner:
 
 ```bash
 python3 <skill-dir>/scripts/commit_changelist.py --dry-run
