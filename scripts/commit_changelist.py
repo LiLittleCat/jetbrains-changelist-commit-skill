@@ -167,6 +167,9 @@ def to_repo_relative(absolute: Path, repo: Path) -> str:
 
 
 def pathspecs_for_changelist(changelist: ET.Element, repo: Path) -> list[str]:
+    # Emit both afterPath and beforePath so `git add -A` sees deletion of the old
+    # name and addition of the new name for renames, letting Git's rename
+    # detection fire. Do not "clean up" by keeping only afterPath.
     paths: list[str] = []
     seen: set[str] = set()
 
@@ -300,6 +303,10 @@ def apply_line_ranges(base: bytes, worktree: bytes, ranges: list[LineRange], pat
 
 
 def index_mode(repo: Path, path: str, extra_env: dict[str, str] | None) -> str:
+    # Only called from build_partial_entries, i.e. files with IDEA line ranges.
+    # LineStatusTrackerManager tracks per-line diffs, so the path is always a
+    # text file — never a symlink (120000) or submodule (160000). The
+    # exec-bit fallback is therefore sufficient.
     result = run_git(repo, ["ls-files", "-s", "--", path], check=False, extra_env=extra_env)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
@@ -389,6 +396,13 @@ def commit_paths(
         result = run_git(repo, cmd, extra_env=index_env)
         sys.stdout.write(result.stdout)
 
+    # Re-align the real index with what we just committed. The commit itself
+    # went through a temporary GIT_INDEX_FILE, so the real index is still in
+    # its pre-commit shape. For paths that were partially staged before this
+    # run, leaving the real index untouched would make `git status` show the
+    # committed change as still pending. These two calls overwrite the real
+    # index entries for selected paths only — other changelists' entries are
+    # not touched. This is the documented side effect in SKILL.md.
     if full_paths and not full_paths_are_already_indexed:
         run_git(repo, ["add", "-A", "--", *full_paths])
     if partial_entries:

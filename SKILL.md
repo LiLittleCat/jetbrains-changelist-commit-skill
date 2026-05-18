@@ -38,9 +38,11 @@ From any directory inside the repository, prefer the native runner for the platf
 Windows / PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File <skill-dir>\scripts\commit_changelist.ps1 -DryRun
-powershell -ExecutionPolicy Bypass -File <skill-dir>\scripts\commit_changelist.ps1 -Message "feat: concise message"
+pwsh -File <skill-dir>\scripts\commit_changelist.ps1 -DryRun
+pwsh -File <skill-dir>\scripts\commit_changelist.ps1 -Message "feat: concise message"
 ```
+
+If only Windows PowerShell 5.1 is available, substitute `powershell -ExecutionPolicy Bypass` for `pwsh`.
 
 Linux or macOS / POSIX shell:
 
