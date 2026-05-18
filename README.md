@@ -7,7 +7,7 @@
 
 <br>
 
-**An Agent Skill for committing JetBrains IDE changelists safely**. It reads `.idea/workspace.xml`, resolves the selected changelist from `ChangeListManager`, and commits only those paths through a temporary Git index, so one changelist can be committed without disturbing the Git index entries of the others.
+**An Agent Skill for committing JetBrains IDE changelists safely**. It reads `.idea/workspace.xml`, resolves the selected changelist from `ChangeListManager`, and commits the selected paths through a temporary Git index. When IDEA records per-line ownership in `LineStatusTrackerManager`, shared files are committed with only the ranges that belong to the selected changelist.
 
 The goal is practical: keep Codex, Claude Code, and other skill-aware agents from accidentally mixing unrelated local work into a commit, especially in repositories where IntelliJ IDEA, WebStorm, PyCharm, or Android Studio changelists are the source of truth.
 
@@ -87,10 +87,12 @@ The bundled runners:
 - Locate `ChangeListManager`.
 - Select the default changelist or a named changelist via `--list`.
 - Extract direct `<change>` entries from the selected list.
+- Read `LineStatusTrackerManager` ranges for files split across changelists.
 - Use both `afterPath` and `beforePath` so additions, edits, deletes, and renames are covered.
 - Expand `$PROJECT_DIR$` to the Git repository root.
 - Reject changelist paths outside the repository.
 - Build the commit through a temporary Git index.
+- For shared files, write a temporary blob made from `HEAD` plus the selected line ranges.
 - Leave other changelist index entries untouched.
 
 ## Usage
@@ -113,12 +115,12 @@ The agent uses the bundled scripts behind the scenes, then reports the commit ha
 
 ## Internals
 
-The skill bundles three runner scripts so agents can use the best available runtime. In practice, PowerShell and POSIX shell are intended to be the primary runners, and Python is optional:
+The skill bundles three runner scripts. Python contains the shared implementation, while PowerShell and POSIX shell provide platform-native wrappers:
 
 ```text
 scripts/commit_changelist.ps1
 scripts/commit_changelist.sh
-scripts/commit_changelist.py   # optional fallback
+scripts/commit_changelist.py
 ```
 
 ## Layout

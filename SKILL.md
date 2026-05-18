@@ -9,7 +9,7 @@ description: Use when creating a git commit in a JetBrains project (one containi
 
 AI coding agents commit too eagerly. A bare `git add .` or `git commit -a` sweeps in unrelated local work — debug prints, half-finished experiments, files belonging to a different task — anything the working tree happens to hold. JetBrains IDEs already solve this on the human side: developers carefully group commit-worthy files into named `ChangeListManager` lists in `.idea/workspace.xml`, and unrelated edits live in other lists.
 
-This skill makes the agent trust that grouping. It reads the selected changelist, commits only those paths through a temporary Git index, and leaves every other changelist's index entries untouched. The result: the agent commits exactly the files the developer staged in the IDE, and nothing else.
+This skill makes the agent trust that grouping. It reads the selected changelist, commits those paths through a temporary Git index, and honors IDEA's per-line ownership data when `LineStatusTrackerManager` records multiple changelists in the same file. The result: the agent commits exactly the selected changelist's files and line ranges.
 
 ## When to Use
 
@@ -26,7 +26,7 @@ This skill makes the agent trust that grouping. It reads the selected changelist
 ## Workflow
 
 1. Locate the repository root with `git rev-parse --show-toplevel`.
-2. Prefer the bundled PowerShell runner on Windows or the POSIX shell runner on Linux/macOS. Run it in dry-run mode to read `.idea/workspace.xml`, select the `<component name="ChangeListManager">` list with `default="true"` (or the named list), and print the paths.
+2. Prefer the bundled PowerShell runner on Windows or the POSIX shell runner on Linux/macOS. Run it in dry-run mode to read `.idea/workspace.xml`, select the `<component name="ChangeListManager">` list with `default="true"` (or the named list), and print the paths plus any line ranges.
 3. Review the printed paths against the user's intended commit scope.
 4. Run the same runner with the commit message to stage and commit only those paths.
 5. Report the commit hash and the paths included.
@@ -49,7 +49,7 @@ sh <skill-dir>/scripts/commit_changelist.sh --dry-run
 sh <skill-dir>/scripts/commit_changelist.sh -m "feat: concise message"
 ```
 
-Python remains available as an optional fallback:
+Python contains the shared implementation used by the platform wrappers:
 
 ```bash
 python3 <skill-dir>/scripts/commit_changelist.py --dry-run
@@ -80,13 +80,15 @@ Shell equivalents match the Python flags:
 
 - Read `.idea/workspace.xml`.
 - Extract direct `<change>` children from the selected changelist.
+- Extract matching `LineStatusTrackerManager` ranges for selected files.
 - Expand `$PROJECT_DIR$` to the Git repository root.
 - Use both `afterPath` and `beforePath` so additions, edits, deletes, and renames are handled.
 - Build the commit from a temporary Git index seeded from `HEAD`.
-- Add only the selected changelist paths to the temporary index.
+- Add selected changelist paths to the temporary index.
+- For files split across changelists, write a blob made from `HEAD` plus only the selected line ranges.
 - Update the real Git index only for selected paths that were not already indexed with their worktree content. Index entries for other changelists are never touched.
 
-Side effect: if a selected path was partially staged (e.g. via `git add -p`) before running this skill, the real index for that path is replaced with the worktree content after the commit. The intermediate partial-staging state is lost, but no committed content is lost — the worktree state is what was just committed.
+Side effect: if a selected path was partially staged (e.g. via `git add -p`) before running this skill, the real index for that path may be rewritten after the commit. For shared files with IDEA line ranges, the real index is updated to the committed selected-range blob and the remaining worktree edits stay visible.
 
 ## Common Mistakes
 
