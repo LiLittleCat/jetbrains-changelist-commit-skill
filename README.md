@@ -5,11 +5,14 @@
 [![Agent Skill](https://img.shields.io/badge/Agent-Skill-7c3aed)](https://github.com/vercel-labs/skills)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+</div>
+
 **Let AI agents safely commit the exact JetBrains IDE changelist you choose, including per-line changes in shared files, without mixing unrelated local work.** It reads `.idea/workspace.xml`, resolves the selected changelist from `ChangeListManager`, and commits the selected paths through a temporary Git index. When IDEA records per-line ownership in `LineStatusTrackerManager`, shared files are committed with only the ranges that belong to the selected changelist.
 
 The goal is practical: keep Codex, Claude Code, and other skill-aware agents from accidentally mixing unrelated local work into a commit, especially in repositories where IntelliJ IDEA, WebStorm, PyCharm, or Android Studio changelists are the source of truth.
 
-<br>
+
+<div align="center">
 
 [Install](#install) | [Usage](#usage) | [Behavior](#behavior) | [Layout](#layout) | [License](#license)
 
