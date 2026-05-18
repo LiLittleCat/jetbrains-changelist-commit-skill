@@ -113,12 +113,12 @@ The agent uses the bundled scripts behind the scenes, then reports the commit ha
 
 ## Internals
 
-The skill bundles three runner scripts so agents can use the best available runtime:
+The skill bundles three runner scripts so agents can use the best available runtime. In practice, PowerShell and POSIX shell are intended to be the primary runners, and Python is optional:
 
 ```text
-scripts/commit_changelist.py
 scripts/commit_changelist.ps1
 scripts/commit_changelist.sh
+scripts/commit_changelist.py   # optional fallback
 ```
 
 ## Layout

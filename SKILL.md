@@ -26,32 +26,34 @@ This skill makes the agent trust that grouping. It reads the selected changelist
 ## Workflow
 
 1. Locate the repository root with `git rev-parse --show-toplevel`.
-2. Run the bundled script in dry-run mode to read `.idea/workspace.xml`, select the `<component name="ChangeListManager">` list with `default="true"` (or the named list), and print the paths.
+2. Prefer the bundled PowerShell runner on Windows or the POSIX shell runner on Linux/macOS. Run it in dry-run mode to read `.idea/workspace.xml`, select the `<component name="ChangeListManager">` list with `default="true"` (or the named list), and print the paths.
 3. Review the printed paths against the user's intended commit scope.
-4. Run the same script with `-m "<commit message>"` to stage and commit only those paths.
+4. Run the same runner with the commit message to stage and commit only those paths.
 5. Report the commit hash and the paths included.
 
 ## Commands
 
-From any directory inside the repository:
+From any directory inside the repository, prefer the native runner for the platform.
 
-```bash
-python <skill-dir>/scripts/commit_changelist.py --dry-run
-python <skill-dir>/scripts/commit_changelist.py -m "feat: concise message"
-```
-
-When Python is unavailable on Windows, use the PowerShell fallback:
+Windows / PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File <skill-dir>\scripts\commit_changelist.ps1 -DryRun
 powershell -ExecutionPolicy Bypass -File <skill-dir>\scripts\commit_changelist.ps1 -Message "feat: concise message"
 ```
 
-When Python is unavailable on Linux or macOS, use the POSIX shell fallback:
+Linux or macOS / POSIX shell:
 
 ```bash
 sh <skill-dir>/scripts/commit_changelist.sh --dry-run
 sh <skill-dir>/scripts/commit_changelist.sh -m "feat: concise message"
+```
+
+Python remains available as an optional fallback:
+
+```bash
+python3 <skill-dir>/scripts/commit_changelist.py --dry-run
+python3 <skill-dir>/scripts/commit_changelist.py -m "feat: concise message"
 ```
 
 Use `--repo <path>` when working outside the target repository.
@@ -74,7 +76,7 @@ Shell equivalents match the Python flags:
 
 ## Script Behavior
 
-`scripts/commit_changelist.py`, `scripts/commit_changelist.ps1`, and `scripts/commit_changelist.sh`:
+`scripts/commit_changelist.ps1`, `scripts/commit_changelist.sh`, and the optional fallback `scripts/commit_changelist.py`:
 
 - Read `.idea/workspace.xml`.
 - Extract direct `<change>` children from the selected changelist.
