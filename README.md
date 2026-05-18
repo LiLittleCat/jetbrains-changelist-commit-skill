@@ -7,11 +7,11 @@
 
 </div>
 
-Let AI agents safely commit based on JetBrains IDE changelists, including line-level commits for files split across multiple changelists, without mixing unrelated local work.
+An agent skill for safely creating focused commits from JetBrains IDE changelists without mixing unrelated local work.
 
-It reads `.idea/workspace.xml`, resolves the selected changelist from `ChangeListManager`, and commits the selected paths through a temporary Git index. When IDEA records per-line ownership in `LineStatusTrackerManager`, shared files are committed with only the ranges that belong to the selected changelist.
+It reads `.idea/workspace.xml`, resolves the selected changelist from JetBrains `ChangeListManager`, and commits only the selected paths through a temporary Git index. When the IDE records per-line changelist ownership through `LineStatusTrackerManager`, the skill can commit only the ranges that belong to the selected changelist, even when a single file contains changes from multiple changelists.
 
-The goal is practical: keep Codex, Claude Code, and other skill-aware agents from accidentally mixing unrelated local work into a commit, especially in repositories where IntelliJ IDEA, WebStorm, PyCharm, or Android Studio changelists are the source of truth.
+This is built for practical agent workflows: preventing Codex, Claude Code, and other skill-aware agents from accidentally including unrelated local changes in a commit, especially in repositories where changelists from IntelliJ IDEA, WebStorm, PyCharm, or Android Studio are the source of truth.
 
 
 <div align="center">
