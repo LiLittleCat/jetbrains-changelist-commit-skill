@@ -28,8 +28,13 @@ This skill makes the agent trust that grouping. It reads the selected changelist
 1. Locate the repository root with `git rev-parse --show-toplevel`.
 2. Prefer the bundled PowerShell runner on Windows or the POSIX shell runner on Linux/macOS. Run it in dry-run mode to read `.idea/workspace.xml`, select the `<component name="ChangeListManager">` list with `default="true"` (or the named list), and print the paths plus any line ranges.
 3. Review the printed paths against the user's intended commit scope.
-4. Run the same runner with the commit message to stage and commit only those paths.
-5. Report the commit hash and the paths included.
+4. Choose the commit message:
+   - If the user supplied a message, use it exactly.
+   - If the selected JetBrains changelist has a non-empty `comment`, use that comment.
+   - Otherwise, inspect recent history with `git log --oneline -20` and match the repository's commit message style.
+   - If there is no useful history, use a concise Conventional Commits message such as `feat(scope): summary`, `fix(scope): summary`, `feat: summary`, or `fix: summary`.
+5. Run the same runner with the commit message to stage and commit only those paths.
+6. Report the commit hash and the paths included.
 
 ## Commands
 

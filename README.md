@@ -5,17 +5,21 @@
 [![Agent Skill](https://img.shields.io/badge/Agent-Skill-7c3aed)](https://github.com/vercel-labs/skills)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-<br>
-
-**An Agent Skill for committing JetBrains IDE changelists safely**. It reads `.idea/workspace.xml`, resolves the selected changelist from `ChangeListManager`, and commits the selected paths through a temporary Git index. When IDEA records per-line ownership in `LineStatusTrackerManager`, shared files are committed with only the ranges that belong to the selected changelist.
+**Let AI agents safely commit the exact JetBrains IDE changelist you choose, including per-line changes in shared files, without mixing unrelated local work.** It reads `.idea/workspace.xml`, resolves the selected changelist from `ChangeListManager`, and commits the selected paths through a temporary Git index. When IDEA records per-line ownership in `LineStatusTrackerManager`, shared files are committed with only the ranges that belong to the selected changelist.
 
 The goal is practical: keep Codex, Claude Code, and other skill-aware agents from accidentally mixing unrelated local work into a commit, especially in repositories where IntelliJ IDEA, WebStorm, PyCharm, or Android Studio changelists are the source of truth.
 
 <br>
 
-**Install** - pick one:
+[Install](#install) | [Usage](#usage) | [Behavior](#behavior) | [Layout](#layout) | [License](#license)
 
 </div>
+
+---
+
+## Install
+
+Pick one:
 
 **A. With [`skills`](https://github.com/vercel-labs/skills):**
 
@@ -36,48 +40,37 @@ Install the jetbrains-changelist-commit skill for this project:
 3. Confirm the install path.
 ```
 
-<div align="center">
+## Usage
 
-[Use cases](#use-cases) | [Behavior](#behavior) | [Usage](#usage) | [Layout](#layout) | [License](#license)
+### Commit the current changelist
 
-</div>
-
----
-
-## Use cases
-
-### Case 1 - Commit only the default changelist
-
-You have multiple local changes, and IDEA already grouped the commit-worthy files into the default changelist.
+When your IDE changelist already contains the work you want to commit, ask your agent directly:
 
 ```text
-You    > Commit the default changelist.
-
-Agent  > I will read .idea/workspace.xml, use the default ChangeListManager
-         list, dry-run the selected paths, then commit only those paths with
-         the bundled script.
+commit
 ```
 
-The script selects the `<list default="true">` entry, expands `$PROJECT_DIR$`, and commits the listed files.
+The agent reads `.idea/workspace.xml`, previews the selected changelist, and commits only that changelist.
 
-### Case 2 - Commit a named changelist
+### Commit a named changelist
 
-You moved a focused change into a named JetBrains changelist such as `JIRA-1234`.
+When the commit should use a specific JetBrains IDE changelist, name it:
 
 ```text
-You    > Commit the changelist named JIRA-1234.
-
-Agent  > I will select the matching ChangeListManager list, show the paths,
-         and commit only that changelist.
+commit the JIRA-1234 changelist
 ```
 
-The same `--list` selector accepts a changelist name or id.
+The name can be the changelist name or id from IDEA.
 
-### Case 3 - Preserve other staged changelists
+### Provide a commit message
 
-Other changelists may already have staged additions, deletes, renames, or partially staged content. The script builds the commit with a temporary index seeded from `HEAD`, adds the selected changelist paths to that temporary index, and creates the commit from there.
+You can provide the commit message up front:
 
-That keeps unrelated changelist entries in the real `.git/index` stable, which helps JetBrains IDEs preserve their changelist state.
+```text
+commit with message "fix: handle empty training sample"
+```
+
+When committing without an explicit message, the agent uses a supplied JetBrains changelist comment first, then matches recent repository history from `git log --oneline -20`. If there is no useful history, it falls back to a concise Conventional Commits message such as `feat(scope): summary` or `fix(scope): summary`.
 
 ## Behavior
 
@@ -95,41 +88,11 @@ The bundled runners:
 - For shared files, write a temporary blob made from `HEAD` plus the selected line ranges.
 - Leave other changelist index entries untouched.
 
-## Usage
-
-Ask your agent to commit a changelist. The skill tells the agent how to inspect `.idea/workspace.xml`, pick the intended changelist, preview the selected files, and create a scoped commit.
-
-```text
-Commit the default changelist with message "fix: handle empty training sample".
-```
-
-```text
-Commit the changelist named JIRA-1234 with message "feat: add retry policy".
-```
-
-```text
-Dry-run the default changelist and show me the files that would be committed.
-```
-
-The agent uses the bundled scripts behind the scenes, then reports the commit hash and included paths.
-
-## Internals
-
-The skill bundles three runner scripts. PowerShell, POSIX shell, and Python each implement the same changelist behavior so agents can use the runtime already available on the target machine:
-
-```text
-scripts/commit_changelist.ps1
-scripts/commit_changelist.sh
-scripts/commit_changelist.py
-```
-
 ## Layout
 
 ```text
 jetbrains-changelist-commit-skill/
 ├── SKILL.md
-├── README.md
-├── LICENSE
 └── scripts/
     ├── commit_changelist.py
     ├── commit_changelist.ps1
